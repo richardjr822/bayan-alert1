@@ -1,35 +1,54 @@
 import Container from "./Container";
-import StepCard from "./StepCard";
 
 const STEPS = [
   {
-    index: "1",
-    title: "Submit a report",
-    description: "Send the emergency details with contact information in seconds.",
+    index: "01",
+    icon: "fa-solid fa-file-circle-plus",
+    title: "Submit a Report",
+    description: "Fill in the incident type and contact details. Location is auto-captured by GPS in seconds.",
   },
   {
-    index: "2",
-    title: "Location is tagged",
-    description: "GPS tagging helps responders locate the incident quickly.",
+    index: "02",
+    icon: "fa-solid fa-map-pin",
+    title: "Location is Tagged",
+    description: "Precise coordinates are attached to your report so responders know exactly where to go.",
   },
   {
-    index: "3",
-    title: "Officials respond",
-    description: "Barangay teams coordinate responses from the live dashboard.",
+    index: "03",
+    icon: "fa-solid fa-people-group",
+    title: "Officials Respond",
+    description: "Barangay responders review and coordinate action from the live monitoring dashboard.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="bg-[var(--bg-gray)] py-[88px]">
+    <section className="bg-white py-[80px]">
       <Container size="narrow">
-        <h2 className="mb-4 text-center text-[34px] font-bold text-[var(--text)] sm:text-[48px]">How It Works</h2>
-        <p className="mx-auto mb-10 max-w-[640px] text-center text-[14px] leading-relaxed text-[var(--muted)]">
-          BayanAlert guides residents through a simple flow to keep every report accurate and actionable.
-        </p>
+        <div className="mb-12 text-center">
+          <span className="inline-block rounded-full bg-[var(--bg-gray)] px-4 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">
+            How It Works
+          </span>
+          <h2 className="mt-3 text-[30px] font-bold text-[var(--text)] sm:text-[40px]">3 Simple Steps</h2>
+          <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-relaxed text-[var(--muted)]">
+            No account required to report. Takes under 60 seconds.
+          </p>
+        </div>
         <div className="grid gap-6 md:grid-cols-3">
           {STEPS.map((step) => (
-            <StepCard key={step.index} index={step.index} title={step.title} description={step.description} />
+            <article
+              key={step.index}
+              className="relative rounded-xl border border-[var(--line)] bg-[var(--bg-gray)] p-7 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+            >
+              <span className="absolute right-5 top-5 text-[40px] font-extrabold leading-none text-[var(--line)]">
+                {step.index}
+              </span>
+              <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[var(--red)] shadow-[0_2px_12px_rgba(212,170,0,0.30)]">
+                <i className={`${step.icon} text-[18px] text-white`}></i>
+              </div>
+              <h3 className="text-[17px] font-semibold text-[var(--text)]">{step.title}</h3>
+              <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">{step.description}</p>
+            </article>
           ))}
         </div>
       </Container>

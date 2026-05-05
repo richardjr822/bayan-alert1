@@ -235,8 +235,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
 - No Supabase Auth
 - No external authentication providers
-- No unnecessary dependencies
-- No API routes unless needed later
 - No comments in generated code
 
 ---

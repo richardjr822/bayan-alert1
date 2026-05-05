@@ -16,19 +16,17 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
 
   return (
-    <form
-      action={formAction}
-      className="mx-auto max-w-[520px] rounded-[10px] border border-[#dfe3e8] bg-[#efeff1] p-6 shadow-[0_2px_7px_rgba(0,0,0,0.06)]"
-    >
+    <form action={formAction} className="space-y-1">
       {state.error ? (
-        <div className="mb-4 rounded-[5px] border border-[#f3b6b6] bg-[#fff1f1] px-3 py-3 text-[12px] font-medium text-[#a63232]">
-          {state.error}
+        <div className="mb-5 flex items-start gap-2.5 rounded-lg border border-[#f3c6c6] bg-[#fff5f5] px-4 py-3 text-[13px] font-medium text-[#c0392b]">
+          <i className="fa-solid fa-circle-exclamation mt-0.5 shrink-0"></i>
+          <span>{state.error}</span>
         </div>
       ) : null}
       <TextInput
         id="email"
         name="email"
-        label="Email *"
+        label="Email address"
         type="email"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
@@ -38,20 +36,29 @@ export default function LoginForm() {
       <TextInput
         id="password"
         name="password"
-        label="Password *"
+        label="Password"
         type="password"
         value={password}
         onChange={(event) => setPassword(event.target.value)}
         autoComplete="current-password"
         required
       />
-      <AuthFormStatus label="Login" pendingLabel="Logging In..." icon="fa-solid fa-right-to-bracket" />
-      <p className="mt-4 text-center text-[12px] text-[var(--muted)]">
-        New resident?{" "}
-        <Link href="/register" className="font-semibold text-[var(--red-dark)]">
-          Register
+      <div className="pt-3">
+        <AuthFormStatus label="Sign In" pendingLabel="Signing In..." icon="fa-solid fa-right-to-bracket" />
+        <p className="mt-3 text-center text-[11px] leading-relaxed text-[var(--muted)]">
+          By signing in, you agree to our{" "}
+          <span className="font-medium text-[var(--text)]">Terms and Conditions</span> and acknowledge
+          our{" "}
+          <span className="font-medium text-[var(--text)]">Privacy Policy</span> in accordance with
+          RA 10173.
+        </p>
+      </div>
+      <div className="border-t border-[var(--line)] pt-5 text-center text-[13px] text-[var(--muted)]">
+        New to BayanAlert?{" "}
+        <Link href="/register" className="font-semibold text-[var(--red-dark)] hover:underline">
+          Create an account
         </Link>
-      </p>
+      </div>
     </form>
   );
 }

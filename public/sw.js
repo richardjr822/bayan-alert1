@@ -34,3 +34,30 @@ self.addEventListener("activate", (event) => {
     })
   );
 });
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let data = {};
+  try { data = event.data.json(); } catch { data = { title: "BayanAlert", body: event.data.text() }; }
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? "BayanAlert", {
+      body: data.body ?? "",
+      icon: "/app-logo.png",
+      badge: "/app-logo.png",
+      tag: data.tag ?? "bayanalert-update",
+      requireInteraction: true,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes("/dashboard") && "focus" in client) return client.focus();
+      }
+      return clients.openWindow("/dashboard");
+    })
+  );
+});

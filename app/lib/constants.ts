@@ -9,5 +9,5 @@ export const INCIDENT_OPTIONS = [
   { value: "Other", label: "⚠️ Other" },
 ];
 
-export const STA_RITA_CENTER = { lat: 14.3561, lng: 120.2854 };
+export const STA_RITA_CENTER = { lat: 14.84798, lng: 120.2972185 };
 export const STA_RITA_RADIUS_KM = 3;

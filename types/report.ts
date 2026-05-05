@@ -37,5 +37,6 @@ export type UpdateReportPayload = {
   reportId: string;
   status: string;
   priority: string;
-  remarks: string;
+  remarks?: string;
+  assignedTo?: string;
 };

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "./components/client/ServiceWorkerRegister";
+import AppSplash from "./components/client/AppSplash";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -12,6 +13,10 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "BayanAlert",
   description: "Community Emergency Reporting & Response System for Brgy Sta Rita",
+  icons: {
+    icon: "/app-logo.ico",
+    apple: "/app-logo.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -38,6 +43,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[var(--bg-gray)] text-[var(--text)]">
+        <AppSplash />
         <ServiceWorkerRegister />
         {children}
       </body>
