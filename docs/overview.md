@@ -1,0 +1,81 @@
+# BayanAlert Overview
+
+## File/Folder Structure
+
+- AGENTS.md
+- CLAUDE.md
+- eslint.config.mjs
+- next-env.d.ts
+- next.config.ts
+- package.json
+- postcss.config.mjs
+- README.md
+- tsconfig.json
+- app/
+  - components/
+    - client/
+      - ui/
+        - Button.tsx
+        - SelectInput.tsx
+        - Textarea.tsx
+        - TextInput.tsx
+      - AuthFormStatus.tsx
+      - DashboardClient.tsx
+      - LoginForm.tsx
+      - RegisterForm.tsx
+      - ReportCard.tsx
+      - ReportFormClient.tsx
+      - ServiceWorkerRegister.tsx
+      - StatCard.tsx
+      - ToastStack.tsx
+    - Container.tsx
+    - FeatureCard.tsx
+    - Features.tsx
+    - Footer.tsx
+    - Hero.tsx
+    - HowItWorks.tsx
+    - SectionHeader.tsx
+    - StepCard.tsx
+    - Topbar.tsx
+  - dashboard/
+    - page.tsx
+  - lib/
+    - constants.ts
+    - utils.ts
+  - login/
+    - page.tsx
+  - register/
+    - page.tsx
+  - report/
+    - page.tsx
+  - types/
+    - report.ts
+  - globals.css
+  - layout.tsx
+  - page.tsx
+- docs/
+  - overview.md
+- lib/
+  - auth/
+    - actions.ts
+    - session.ts
+  - supabase/
+    - client.ts
+    - server.ts
+- public/
+  - manifest.json
+  - sw.js
+- types/
+  - report.ts
+  - user.ts
+
+## Current Flow of the Application
+
+- App shell renders in [app/layout.tsx](../app/layout.tsx) with global styles, metadata, and font setup.
+- Landing page is in [app/page.tsx](../app/page.tsx) and composes the layout sections.
+- Topbar, Hero, Features, and How It Works sections are server components in [app/components](../app/components).
+- Auth pages live in [app/login/page.tsx](../app/login/page.tsx) and [app/register/page.tsx](../app/register/page.tsx) with form UI in client components.
+- Report submission UI is rendered by [app/report/page.tsx](../app/report/page.tsx) and its client form component.
+- Dashboard UI is rendered by [app/dashboard/page.tsx](../app/dashboard/page.tsx) with client-side stats and report cards.
+- Auth and session utilities live in [lib/auth](../lib/auth) and Supabase clients in [lib/supabase](../lib/supabase).
+- Reusable client UI pieces (forms, cards, toasts, inputs) live in [app/components/client](../app/components/client).
