@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { updateReportStatus } from "@/lib/actions/reportActions";
-import type { ReportPriority, ReportStatus, ReportWithUpdates, StatusUpdate } from "../../../types/report";
+import { ReportPriority, ReportStatus } from "../../../types/report";
+import type { ReportWithUpdates, StatusUpdate } from "../../../types/report";
 import { formatTime } from "../../lib/utils";
 
 type ToastKind = "success" | "error" | "info";
@@ -14,58 +15,52 @@ type AdminReportCardProps = {
   onOptimisticUpdate: (reportId: string, status: ReportStatus, priority: ReportPriority, update: StatusUpdate | null) => void;
   onRollback: (report: ReportWithUpdates) => void;
   onToast: (message: string, kind?: ToastKind) => void;
+  onOpenDrawer?: () => void;
 };
 
 const statusLabels: Record<ReportStatus, string> = {
-  pending: "Pending",
-  verified: "Verified",
-  in_progress: "In Progress",
-  resolved: "Resolved",
-  rejected: "Rejected",
+  [ReportStatus.Pending]: "Pending",
+  [ReportStatus.Verified]: "Verified",
+  [ReportStatus.InProgress]: "In Progress",
+  [ReportStatus.Resolved]: "Resolved",
+  [ReportStatus.Rejected]: "Rejected",
 };
 
 const statusClasses: Record<ReportStatus, string> = {
-  pending: "bg-[#fff8dc] text-[#B89400]",
-  verified: "bg-[#e8f1ff] text-[#2264b5]",
-  in_progress: "bg-[#fff0df] text-[#bf6416]",
-  resolved: "bg-[var(--green-soft)] text-[var(--green)]",
-  rejected: "bg-[#ffe8e8] text-[#b83232]",
+  [ReportStatus.Pending]: "bg-[#fff8dc] text-[#B89400]",
+  [ReportStatus.Verified]: "bg-[#e8f1ff] text-[#2264b5]",
+  [ReportStatus.InProgress]: "bg-[#fff0df] text-[#bf6416]",
+  [ReportStatus.Resolved]: "bg-[var(--green-soft)] text-[var(--green)]",
+  [ReportStatus.Rejected]: "bg-[#ffe8e8] text-[#b83232]",
 };
 
 const statusDot: Record<ReportStatus, string> = {
-  pending: "#B89400",
-  verified: "#2264b5",
-  in_progress: "#bf6416",
-  resolved: "#20a45d",
-  rejected: "#b83232",
+  [ReportStatus.Pending]: "#B89400",
+  [ReportStatus.Verified]: "#2264b5",
+  [ReportStatus.InProgress]: "#bf6416",
+  [ReportStatus.Resolved]: "#20a45d",
+  [ReportStatus.Rejected]: "#b83232",
 };
 
 const priorityLabels: Record<ReportPriority, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
+  [ReportPriority.Low]: "Low",
+  [ReportPriority.Medium]: "Medium",
+  [ReportPriority.High]: "High",
+  [ReportPriority.Critical]: "Critical",
 };
 
 const priorityClasses: Record<ReportPriority, string> = {
-  low: "bg-[#eef1f5] text-[var(--muted)]",
-  medium: "bg-[#fff8dc] text-[#B89400]",
-  high: "bg-[#fff0df] text-[#bf6416]",
-  critical: "bg-[#ffe8e8] text-[#b83232]",
+  [ReportPriority.Low]: "bg-[#eef1f5] text-[var(--muted)]",
+  [ReportPriority.Medium]: "bg-[#fff8dc] text-[#B89400]",
+  [ReportPriority.High]: "bg-[#fff0df] text-[#bf6416]",
+  [ReportPriority.Critical]: "bg-[#ffe8e8] text-[#b83232]",
 };
 
 const priorityBorder: Record<ReportPriority, string> = {
-  low: "#d1d5db",
-  medium: "#B89400",
-  high: "#bf6416",
-  critical: "#b83232",
-};
-
-const priorityCardBg: Record<ReportPriority, string> = {
-  low: "#ffffff",
-  medium: "#ffffff",
-  high: "#fffcf5",
-  critical: "#fff8f8",
+  [ReportPriority.Low]: "border-l-[#d1d5db]",
+  [ReportPriority.Medium]: "border-l-[#B89400]",
+  [ReportPriority.High]: "border-l-[#bf6416]",
+  [ReportPriority.Critical]: "border-l-[#b83232]",
 };
 
 const incidentIcon: Record<string, string> = {
@@ -76,36 +71,45 @@ const incidentIcon: Record<string, string> = {
   "Accident": "fa-car-burst",
 };
 
+const incidentPalette: Record<string, string> = {
+  "Fire": "bg-orange-50 text-orange-600",
+  "Flood/Water Hazard": "bg-blue-50 text-blue-600",
+  "Medical Emergency": "bg-red-50 text-red-600",
+  "Crime/Security": "bg-slate-100 text-slate-700",
+  "Accident": "bg-amber-50 text-amber-700",
+  "default": "bg-slate-100 text-slate-600",
+};
+
 const statusOptions: { value: ReportStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "verified", label: "Verified" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "resolved", label: "Resolved" },
-  { value: "rejected", label: "Rejected" },
+  { value: ReportStatus.Pending, label: "Pending" },
+  { value: ReportStatus.Verified, label: "Verified" },
+  { value: ReportStatus.InProgress, label: "In Progress" },
+  { value: ReportStatus.Resolved, label: "Resolved" },
+  { value: ReportStatus.Rejected, label: "Rejected" },
 ];
 
 const priorityOptions: { value: ReportPriority; label: string }[] = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "critical", label: "Critical" },
+  { value: ReportPriority.Low, label: "Low" },
+  { value: ReportPriority.Medium, label: "Medium" },
+  { value: ReportPriority.High, label: "High" },
+  { value: ReportPriority.Critical, label: "Critical" },
 ];
 
 const RESPONDER_TEAMS = ["", "Tanod Team A", "Tanod Team B", "BFP Sta. Rita", "PNP Station", "MDRRMO"];
 
 type QuickAction = { label: string; icon: string; status: ReportStatus; cls: string };
 const quickActions: Partial<Record<ReportStatus, QuickAction[]>> = {
-  pending: [
-    { label: "Verify", icon: "fa-circle-check", status: "verified", cls: "border-[#2264b5] text-[#2264b5] hover:bg-[#e8f1ff]" },
-    { label: "Reject", icon: "fa-circle-xmark", status: "rejected", cls: "border-[#b83232] text-[#b83232] hover:bg-[#ffe8e8]" },
+  [ReportStatus.Pending]: [
+    { label: "Verify", icon: "fa-circle-check", status: ReportStatus.Verified, cls: "border-[#2264b5] text-[#2264b5] hover:bg-[#e8f1ff]" },
+    { label: "Reject", icon: "fa-circle-xmark", status: ReportStatus.Rejected, cls: "border-[#b83232] text-[#b83232] hover:bg-[#ffe8e8]" },
   ],
-  verified: [
-    { label: "Dispatch", icon: "fa-person-running", status: "in_progress", cls: "border-[#bf6416] text-[#bf6416] hover:bg-[#fff0df]" },
-    { label: "Reject", icon: "fa-circle-xmark", status: "rejected", cls: "border-[#b83232] text-[#b83232] hover:bg-[#ffe8e8]" },
+  [ReportStatus.Verified]: [
+    { label: "Dispatch", icon: "fa-person-running", status: ReportStatus.InProgress, cls: "border-[#bf6416] text-[#bf6416] hover:bg-[#fff0df]" },
+    { label: "Reject", icon: "fa-circle-xmark", status: ReportStatus.Rejected, cls: "border-[#b83232] text-[#b83232] hover:bg-[#ffe8e8]" },
   ],
-  in_progress: [
-    { label: "Resolve", icon: "fa-flag-checkered", status: "resolved", cls: "border-[var(--green)] text-[var(--green)] hover:bg-[var(--green-soft)]" },
-    { label: "Reject", icon: "fa-circle-xmark", status: "rejected", cls: "border-[#b83232] text-[#b83232] hover:bg-[#ffe8e8]" },
+  [ReportStatus.InProgress]: [
+    { label: "Resolve", icon: "fa-flag-checkered", status: ReportStatus.Resolved, cls: "border-[var(--green)] text-[var(--green)] hover:bg-[var(--green-soft)]" },
+    { label: "Reject", icon: "fa-circle-xmark", status: ReportStatus.Rejected, cls: "border-[#b83232] text-[#b83232] hover:bg-[#ffe8e8]" },
   ],
 };
 
@@ -122,7 +126,7 @@ function getElapsed(iso: string): string {
 function getTimeline(report: ReportWithUpdates): StatusUpdate[] {
   const updates = report.status_updates.length
     ? [...report.status_updates]
-    : [{ id: `${report.id}-initial`, report_id: report.id, status: "pending" as ReportStatus, remarks: null, updated_by: report.reporter_name, created_at: report.created_at }];
+    : [{ id: `${report.id}-initial`, report_id: report.id, status: ReportStatus.Pending, remarks: null, updated_by: report.reporter_name, created_at: report.created_at }];
   return updates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
@@ -144,8 +148,10 @@ export default function AdminReportCard({
   onOptimisticUpdate,
   onRollback,
   onToast,
+  onOpenDrawer,
 }: AdminReportCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [status, setStatus] = useState<ReportStatus>(report.status);
   const [priority, setPriority] = useState<ReportPriority>(report.priority);
   const [assignedTo, setAssignedTo] = useState("");
@@ -157,8 +163,29 @@ export default function AdminReportCard({
   const timeline = getTimeline(report);
   const elapsed = getElapsed(report.created_at);
   const icon = incidentIcon[report.incident_type] ?? "fa-circle-exclamation";
+  const iconStyle = incidentPalette[report.incident_type] ?? incidentPalette.default;
   const isOld = Date.now() - new Date(report.created_at).getTime() > 30 * 60 * 1000;
   const actions = quickActions[report.status] ?? [];
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    if (mq.matches) setDetailOpen(true);
+  }, []);
+
+  useEffect(() => {
+    setStatus(report.status);
+    setPriority(report.priority);
+  }, [report.status, report.priority]);
+
+  const humanId = useMemo(() => {
+    const year = new Date(report.created_at).getFullYear();
+    let hash = 0;
+    for (let i = 0; i < report.id.length; i += 1) hash = (hash * 31 + report.id.charCodeAt(i)) % 10000;
+    return `BA-${year}-${String(hash).padStart(4, "0")}`;
+  }, [report.created_at, report.id]);
+
+  const addressLine = report.address ?? (report.latitude && report.longitude ? `${report.latitude.toFixed(5)}, ${report.longitude.toFixed(5)}` : "Location unavailable");
 
   const runUpdate = async (newStatus: ReportStatus, newPriority: ReportPriority, fullRemarks: string) => {
     const optimisticUpdate = createOptimisticUpdate(report.id, newStatus, fullRemarks);
@@ -194,100 +221,109 @@ export default function AdminReportCard({
 
   return (
     <article
-      style={{ borderLeftColor: priorityBorder[report.priority], backgroundColor: priorityCardBg[report.priority] }}
-      className={`w-full overflow-hidden rounded-xl border border-l-4 transition ${isSelected ? "ring-2 ring-[var(--red)]/30" : ""}`}
+      className={`w-full overflow-hidden rounded-xl border border-l-4 bg-white transition ${priorityBorder[report.priority]} ${isSelected ? "ring-2 ring-[var(--red)]/30" : ""}`}
     >
-      {/* ── PREVIEW ROW ── */}
-      <div
-        className="flex cursor-pointer items-start gap-3 px-4 pt-4 pb-3"
-        onClick={() => setExpanded((v) => !v)}
-      >
+      {/* Card header — tappable on mobile to open drawer */}
+      <div className="flex items-start gap-3 px-4 pt-4 pb-3">
         {onSelect ? (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(e) => { e.stopPropagation(); onSelect(report.id, e.target.checked); }}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--red)]"
-          />
+          <label className="inline-flex h-10 w-6 shrink-0 items-center justify-center">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => { e.stopPropagation(); onSelect(report.id, e.target.checked); }}
+              className="h-4 w-4 accent-[var(--red)]"
+              aria-label={`Select report ${humanId}`}
+            />
+          </label>
         ) : null}
 
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${statusClasses[report.status]}`}>
-          <i className={`fa-solid ${icon} text-[14px]`}></i>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="truncate text-[13px] font-bold text-[var(--text)]">{report.incident_type}</h3>
-              <p className="mt-0.5 text-[11px] text-[var(--muted)]">
-                {report.reporter_name}
-                <span className={`ml-1.5 ${report.status === "pending" && isOld ? "font-bold text-[#b83232]" : "text-[var(--muted)]"}`}>
-                  · {elapsed}
+        <button
+          type="button"
+          onClick={() => onOpenDrawer ? onOpenDrawer() : setExpanded((v) => !v)}
+          className="flex flex-1 items-start gap-3 text-left"
+          aria-label={`Open ${report.incident_type} report`}
+        >
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconStyle}`}>
+            <i className={`fa-solid ${icon} text-[16px]`}></i>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-[10px] text-[var(--muted)]">{humanId}</p>
+                <h3 className="truncate text-[14px] font-bold text-[var(--text)]">{report.incident_type}</h3>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${statusClasses[report.status]}`}>
+                  {statusLabels[report.status]}
                 </span>
-              </p>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${priorityClasses[report.priority]}`}>
+                  {priorityLabels[report.priority]}
+                </span>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${statusClasses[report.status]}`}>
-                {statusLabels[report.status]}
-              </span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${priorityClasses[report.priority]}`}>
-                {priorityLabels[report.priority]}
-              </span>
-              <i className={`fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"} ml-1 text-[9px] text-[var(--muted)]`}></i>
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-[var(--muted)]">
+              <span className="font-semibold text-[var(--text)]">{report.reporter_name}</span>
+              <span className="truncate max-w-full">{addressLine}</span>
             </div>
           </div>
-          {report.address ? (
-            <p className="mt-1 truncate text-[11px] text-[var(--muted)]">
-              <i className="fa-solid fa-location-dot mr-1 text-[9px]"></i>{report.address}
-            </p>
-          ) : null}
-        </div>
+        </button>
       </div>
 
-      {/* ── QUICK ACTIONS ── */}
-      {actions.length > 0 ? (
-        <div className="flex items-center gap-2 border-t border-[var(--line)] px-4 py-2.5">
-          <span className="text-[10px] font-semibold text-[var(--muted)]">Quick:</span>
-          {actions.map((action) => (
-            <button
-              key={action.status}
-              type="button"
-              onClick={(e) => handleQuickAction(action, e)}
-              disabled={quickLoading !== null}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition disabled:opacity-50 ${action.cls}`}
-            >
-              <i className={`fa-solid ${quickLoading === action.status ? "fa-spinner fa-spin" : action.icon} text-[10px]`}></i>
-              {action.label}
-            </button>
-          ))}
+      {/* Action row — always visible on mobile */}
+      <div className="flex items-center gap-2 border-t border-[var(--line)] px-4 py-2.5">
+        <a
+          href={`tel:${report.contact_number}`}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-black/10 px-3 text-[12px] font-semibold text-[#2264b5]"
+          aria-label={`Call ${report.reporter_name}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <i className="fa-solid fa-phone text-[11px]"></i>
+          <span className="hidden sm:inline">Call</span>
+        </a>
+        {actions.map((action) => (
           <button
+            key={action.status}
             type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--muted)] hover:text-[var(--text)]"
+            onClick={(e) => handleQuickAction(action, e)}
+            disabled={quickLoading !== null}
+            className={`inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[12px] font-bold transition disabled:opacity-50 ${action.cls}`}
+            aria-label={action.label}
           >
-            <i className="fa-solid fa-pen-to-square text-[10px]"></i>
-            <span className="hidden sm:inline">Edit</span>
+            <i className={`fa-solid ${quickLoading === action.status ? "fa-spinner fa-spin" : action.icon} text-[11px]`}></i>
+            <span>{action.label}</span>
           </button>
-        </div>
-      ) : (
-        <div className="flex items-center border-t border-[var(--line)] px-4 py-2.5">
-          <span className="font-mono text-[10px] text-[var(--muted)]">#{report.id.slice(0, 8).toUpperCase()}</span>
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--muted)] hover:text-[var(--text)]"
-          >
-            <i className={`fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"} text-[9px]`}></i>
-            {expanded ? "Collapse" : "Details"}
-          </button>
-        </div>
-      )}
+        ))}
+        <button
+          type="button"
+          onClick={() => onOpenDrawer ? onOpenDrawer() : setDetailOpen((v) => !v)}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#0D1B2A] px-3 text-[12px] font-semibold text-white"
+          aria-label="Open report details"
+        >
+          <i className="fa-solid fa-eye text-[11px]"></i>
+          <span className="hidden sm:inline">Details</span>
+        </button>
 
-      {/* ── EXPANDED PANEL ── */}
-      {expanded ? (
-        <div className="border-t border-[var(--line)] px-4 pt-4 pb-4">
-          {/* Info grid */}
-          <div className="mb-4 grid grid-cols-1 gap-2 rounded-lg bg-[var(--bg-gray)] p-3 text-[12px] sm:grid-cols-2">
+        {/* Desktop toggle for inline form */}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="hidden h-9 w-9 items-center justify-center rounded-lg border border-black/10 sm:inline-flex"
+          aria-label={expanded ? "Collapse" : "Expand"}
+        >
+          <i className={`fa-solid ${expanded ? "fa-chevron-up" : "fa-chevron-down"} text-[11px]`}></i>
+        </button>
+
+        <span
+          title={formatTime(report.created_at)}
+          className={`ml-auto hidden text-[11px] sm:block ${report.status === ReportStatus.Pending && isOld ? "font-bold text-[#b83232]" : "text-[var(--muted)]"}`}
+        >
+          {elapsed}
+        </span>
+      </div>
+
+      {expanded && detailOpen ? (
+        <div className="border-t border-[var(--line)] px-4 pb-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 rounded-lg bg-[var(--bg-gray)] p-3 text-[12px] sm:grid-cols-2">
             <div>
               <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Reporter</span>
               <span className="font-medium text-[var(--text)]">{report.reporter_name}</span>
@@ -301,7 +337,7 @@ export default function AdminReportCard({
             </div>
             <div>
               <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Location</span>
-              <span className="font-medium text-[var(--text)]">{report.address ?? "Location captured"}</span>
+              <span className="font-medium text-[var(--text)]">{addressLine}</span>
             </div>
             <div>
               <span className="block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Submitted</span>
@@ -315,8 +351,7 @@ export default function AdminReportCard({
             ) : null}
           </div>
 
-          {/* Timeline */}
-          <div className="mb-4">
+          <div className="mt-4">
             <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">Timeline</p>
             <div>
               {timeline.map((update, index) => (
@@ -326,9 +361,7 @@ export default function AdminReportCard({
                       style={{ background: statusDot[update.status] }}
                       className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white"
                     ></span>
-                    {index < timeline.length - 1 ? (
-                      <span className="mt-1 w-px flex-1 bg-[var(--line)]"></span>
-                    ) : null}
+                    {index < timeline.length - 1 ? <span className="mt-1 w-px flex-1 bg-[var(--line)]"></span> : null}
                   </div>
                   <div className="pb-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -336,9 +369,7 @@ export default function AdminReportCard({
                         {statusLabels[update.status]}
                       </span>
                       <span className="text-[10px] text-[var(--muted)]">{formatTime(update.created_at)}</span>
-                      {update.updated_by ? (
-                        <span className="text-[10px] text-[var(--muted)]">by {update.updated_by}</span>
-                      ) : null}
+                      {update.updated_by ? <span className="text-[10px] text-[var(--muted)]">by {update.updated_by}</span> : null}
                     </div>
                     {update.remarks ? (
                       <p className="mt-1 rounded-lg bg-[var(--bg-gray)] px-2.5 py-1.5 text-[11px] leading-relaxed text-[var(--text)]">
@@ -351,18 +382,21 @@ export default function AdminReportCard({
             </div>
           </div>
 
-          {/* Update form */}
-          <form onSubmit={handleSubmit} className="rounded-lg border border-[var(--line)] bg-white p-3">
+          <form onSubmit={handleSubmit} className="mt-4 rounded-lg border border-[var(--line)] bg-white p-3">
             <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">Update Report</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Status</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as ReportStatus)}
-                  className="w-full rounded-lg border border-[#d7dde5] bg-white px-2.5 py-2 text-[12px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
+                  className="h-12 w-full rounded-lg border border-[#d7dde5] bg-white px-2.5 text-[16px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
                 >
-                  {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {statusOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -370,19 +404,27 @@ export default function AdminReportCard({
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as ReportPriority)}
-                  className="w-full rounded-lg border border-[#d7dde5] bg-white px-2.5 py-2 text-[12px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
+                  className="h-12 w-full rounded-lg border border-[#d7dde5] bg-white px-2.5 text-[16px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
                 >
-                  {priorityOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {priorityOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
               </div>
-              <div className="col-span-2 sm:col-span-1">
+              <div>
                 <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Assign to</label>
                 <select
                   value={assignedTo}
                   onChange={(e) => setAssignedTo(e.target.value)}
-                  className="w-full rounded-lg border border-[#d7dde5] bg-white px-2.5 py-2 text-[12px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
+                  className="h-12 w-full rounded-lg border border-[#d7dde5] bg-white px-2.5 text-[16px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
                 >
-                  {RESPONDER_TEAMS.map((t) => <option key={t} value={t}>{t || "— No assignment —"}</option>)}
+                  {RESPONDER_TEAMS.map((t) => (
+                    <option key={t} value={t}>
+                      {t || "— No assignment —"}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -390,26 +432,27 @@ export default function AdminReportCard({
             <button
               type="button"
               onClick={() => setShowRemarks((v) => !v)}
-              className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)] hover:text-[var(--text)]"
+              className="mt-3 inline-flex h-11 items-center gap-1.5 text-[12px] font-semibold text-[var(--muted)]"
+              aria-label={showRemarks ? "Hide remarks" : "Add remarks"}
             >
-              <i className={`fa-solid ${showRemarks ? "fa-chevron-up" : "fa-chevron-down"} text-[9px]`}></i>
+              <i className={`fa-solid ${showRemarks ? "fa-chevron-up" : "fa-chevron-down"} text-[10px]`}></i>
               {showRemarks ? "Hide remarks" : "Add remarks (optional)"}
             </button>
 
             {showRemarks ? (
               <textarea
-                rows={2}
+                rows={3}
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder="Response notes for this update..."
-                className="mt-2 w-full resize-none rounded-lg border border-[#d7dde5] bg-white px-3 py-2 text-[12px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
+                className="mt-2 w-full resize-none rounded-lg border border-[#d7dde5] bg-white px-3 py-2 text-[16px] text-[var(--text)] focus:border-[var(--red)] focus:outline-none"
               />
             ) : null}
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--red)] px-5 py-3 text-[12px] font-bold text-white transition hover:bg-[var(--red-dark)] disabled:opacity-60 sm:w-auto sm:justify-start sm:py-2.5"
+              className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--red)] px-5 text-[12px] font-bold text-white transition hover:bg-[var(--red-dark)] disabled:opacity-60"
             >
               <i className={isSubmitting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-floppy-disk"}></i>
               {isSubmitting ? "Updating..." : "Save Changes"}

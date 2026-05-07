@@ -67,6 +67,12 @@ export default function Hero() {
               REPORT EMERGENCY
             </Link>
             <p className="text-[12px] text-white/35">No account required to report</p>
+            <Link
+              href="/track"
+              className="text-[13px] text-white/55 underline underline-offset-2 transition hover:text-white"
+            >
+              Already reported? Track your report →
+            </Link>
           </div>
 
         </div>

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { submitReport } from "@/lib/actions/reportActions";
+import { useRouter } from "next/navigation";
+import { findNearbyReport, submitReport } from "@/lib/actions/reportActions";
+import { ReportPriority } from "@/types/report";
 import { supabase } from "@/lib/supabase/client";
 import { getAddressFromCoords, sanitizeContact } from "../../lib/utils";
 import ToastStack from "./ToastStack";
@@ -30,10 +32,10 @@ const DESCRIPTION_PRESETS = [
 ];
 
 const SEVERITY_OPTIONS = [
-  { value: "low", label: "Low", base: "bg-slate-100 text-slate-600 border-slate-300", active: "bg-slate-200 border-slate-600 ring-2 ring-slate-300" },
-  { value: "medium", label: "Medium", base: "bg-yellow-50 text-yellow-700 border-yellow-300", active: "bg-yellow-100 border-yellow-500 ring-2 ring-yellow-200" },
-  { value: "high", label: "High", base: "bg-orange-50 text-orange-700 border-orange-300", active: "bg-orange-100 border-orange-500 ring-2 ring-orange-200" },
-  { value: "critical", label: "Critical", base: "bg-red-50 text-red-700 border-red-300", active: "bg-red-100 border-red-500 ring-2 ring-red-200" },
+  { value: ReportPriority.Low, label: "Low", base: "bg-slate-100 text-slate-600 border-slate-300", active: "bg-slate-200 border-slate-600 ring-2 ring-slate-300" },
+  { value: ReportPriority.Medium, label: "Medium", base: "bg-yellow-50 text-yellow-700 border-yellow-300", active: "bg-yellow-100 border-yellow-500 ring-2 ring-yellow-200" },
+  { value: ReportPriority.High, label: "High", base: "bg-orange-50 text-orange-700 border-orange-300", active: "bg-orange-100 border-orange-500 ring-2 ring-orange-200" },
+  { value: ReportPriority.Critical, label: "Critical", base: "bg-red-50 text-red-700 border-red-300", active: "bg-red-100 border-red-500 ring-2 ring-red-200" },
 ];
 
 function createId() {
@@ -41,11 +43,12 @@ function createId() {
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-type Props = { defaultContact?: string };
+type Props = { defaultContact?: string; isGuest?: boolean };
 
-export default function ReportFormClient({ defaultContact = "" }: Props) {
+export default function ReportFormClient({ defaultContact = "", isGuest = true }: Props) {
+  const router = useRouter();
   const [incidentType, setIncidentType] = useState("");
-  const [severity, setSeverity] = useState("low");
+  const [severity, setSeverity] = useState<ReportPriority>(ReportPriority.Low);
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [resolvedAddress, setResolvedAddress] = useState("");
   const [manualAddress, setManualAddress] = useState("");
@@ -58,10 +61,12 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
   const [contact, setContact] = useState(defaultContact);
   const [isContactEditable, setIsContactEditable] = useState(!defaultContact);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [reportRef, setReportRef] = useState("");
+  const [reportNumber, setReportNumber] = useState("");
+  const [copied, setCopied] = useState(false);
   const [nearbyReport, setNearbyReport] = useState<NearbyReport | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -118,20 +123,20 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
   useEffect(() => {
     if (!incidentType || !coordinates) return;
     let active = true;
-    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    supabase
-      .from("reports")
-      .select("id, created_at")
-      .eq("incident_type", incidentType)
-      .gte("created_at", thirtyMinsAgo)
-      .in("status", ["pending", "verified", "in_progress"])
-      .gte("latitude", coordinates.latitude - 0.0005)
-      .lte("latitude", coordinates.latitude + 0.0005)
-      .gte("longitude", coordinates.longitude - 0.0005)
-      .lte("longitude", coordinates.longitude + 0.0005)
-      .limit(1)
-      .then(({ data }) => { if (active) setNearbyReport((data as NearbyReport[] | null)?.[0] ?? null); });
-    return () => { active = false; setNearbyReport(null); };
+    const checkNearby = async () => {
+      const result = await findNearbyReport(incidentType, coordinates.latitude, coordinates.longitude);
+      if (!active) return;
+      if ("error" in result) {
+        setNearbyReport(null);
+        return;
+      }
+      setNearbyReport(result.data ?? null);
+    };
+    checkNearby();
+    return () => {
+      active = false;
+      setNearbyReport(null);
+    };
   }, [incidentType, coordinates]);
 
   function togglePreset(preset: string) {
@@ -143,6 +148,7 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -161,6 +167,22 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
 
     const fullDescription = [...selectedPresets, description].filter(Boolean).join(". ") || incidentType;
 
+    let photoUrl: string | undefined;
+    if (photoFile) {
+      const ext = photoFile.name.split(".").pop() ?? "jpg";
+      const path = `${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("report-photos")
+        .upload(path, photoFile, { cacheControl: "3600", upsert: false });
+      if (uploadError) {
+        setSubmitError(`Photo upload failed: ${uploadError.message}`);
+        setIsSubmitting(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("report-photos").getPublicUrl(uploadData.path);
+      photoUrl = urlData.publicUrl;
+    }
+
     const result = await submitReport({
       incidentType,
       description: fullDescription,
@@ -169,6 +191,7 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
       longitude: coordinates?.longitude ?? 0,
       address: locationText,
       severity,
+      photoUrl,
     });
 
     if ("error" in result) {
@@ -177,48 +200,87 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
       return;
     }
 
-    setReportRef(result.reportId.slice(0, 8).toUpperCase());
+    if (!isGuest) {
+      router.push("/track");
+      return;
+    }
+
+    setReportNumber(result.reportId);
     setSubmitted(true);
   };
 
   if (submitted) {
+    function handleCopyId() {
+      navigator.clipboard.writeText(reportNumber).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+
+    function handleReset() {
+      setSubmitted(false);
+      setIncidentType("");
+      setSeverity(ReportPriority.Low);
+      setSelectedPresets([]);
+      setDescription("");
+      setPhotoPreview(null);
+      setPhotoFile(null);
+      setReportNumber("");
+      setCopied(false);
+      setSubmitError("");
+    }
+
     return (
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-white shadow-[0_24px_64px_rgba(0,0,0,0.40)]">
         <div className="p-8 text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green-soft)]">
-            <i className="fa-solid fa-circle-check text-[32px] text-[var(--green)]"></i>
+            <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+              <path d="M7 18l7 7L27 10" stroke="var(--green)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
+
           <h2 className="text-[22px] font-extrabold text-[var(--text)]">Report Submitted</h2>
-          <p className="mt-2 text-[13px] text-[var(--muted)]">
-            A barangay official will respond shortly. Stay safe and keep your phone nearby.
-          </p>
-          <div className="my-6 rounded-xl bg-[var(--bg-gray)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">Reference Number</p>
-            <p className="mt-1 font-mono text-[26px] font-extrabold tracking-widest text-[var(--dark)]">{reportRef}</p>
-            <p className="mt-1 text-[10px] text-[var(--muted)]">Screenshot this for follow-up</p>
+          <p className="mt-1.5 text-[13px] text-[var(--muted)]">Barangay officials have been notified.</p>
+
+          <div className="my-6 rounded-xl bg-[var(--bg-gray)] px-5 py-4">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--red)]">Your Report ID</p>
+            <p className="mt-2 font-mono text-[28px] font-extrabold tracking-widest text-[var(--dark)]">{reportNumber}</p>
+            <p className="mt-1 text-[12px] text-[var(--muted)]">Save this ID to track your report.</p>
+            <button
+              onClick={handleCopyId}
+              className="mt-3 inline-flex items-center gap-2 rounded-[6px] border border-[var(--line)] bg-white px-4 py-2 text-[12px] font-semibold text-[var(--text)] transition hover:bg-[var(--bg-gray)]"
+            >
+              {copied ? (
+                <><i className="fa-solid fa-check text-[var(--green)]" /> Copied ✓</>
+              ) : (
+                <><i className="fa-solid fa-copy" /> Copy ID</>
+              )}
+            </button>
           </div>
-          <a
-            href="/dashboard"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--dark)] px-7 py-3.5 text-[13px] font-bold text-white transition hover:opacity-90"
-          >
-            <i className="fa-solid fa-gauge-high"></i>
-            Track your report
-          </a>
-          <button
-            onClick={() => {
-              setSubmitted(false);
-              setIncidentType("");
-              setSeverity("low");
-              setSelectedPresets([]);
-              setDescription("");
-              setPhotoPreview(null);
-              setReportRef("");
-              setSubmitError("");
-            }}
-            className="mt-3 block w-full text-center text-[12px] text-[var(--muted)] underline underline-offset-2"
-          >
-            Submit another report
-          </button>
+
+          <div className="flex flex-col gap-2.5">
+            <a
+              href={`/track?id=${reportNumber}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--red)] px-7 py-3.5 text-[14px] font-bold text-white transition hover:bg-[var(--red-dark)]"
+            >
+              Track This Report <i className="fa-solid fa-arrow-right text-[12px]" />
+            </a>
+            <button
+              onClick={handleReset}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-white px-7 py-3.5 text-[13px] font-semibold text-[var(--text)] transition hover:bg-[var(--bg-gray)]"
+            >
+              Submit Another Report
+            </button>
+          </div>
+
+          {isGuest ? (
+            <p className="mt-5 text-[12px] text-[var(--muted)]">
+              Create an account to track all your reports automatically.{" "}
+              <a href="/register" className="font-semibold text-[var(--red)] hover:underline">
+                Register here
+              </a>
+            </p>
+          ) : null}
         </div>
       </div>
     );
@@ -396,7 +458,7 @@ export default function ReportFormClient({ defaultContact = "" }: Props) {
               <img src={photoPreview} alt="Report photo" className="max-h-[200px] w-full object-cover" />
                 <button
                   type="button"
-                  onClick={() => setPhotoPreview(null)}
+                  onClick={() => { setPhotoPreview(null); setPhotoFile(null); }}
                   className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white"
                 >
                   <i className="fa-solid fa-xmark text-[12px]"></i>

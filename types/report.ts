@@ -1,6 +1,17 @@
-export type ReportStatus = "pending" | "verified" | "in_progress" | "resolved" | "rejected";
+export const enum ReportStatus {
+  Pending = "pending",
+  Verified = "verified",
+  InProgress = "in_progress",
+  Resolved = "resolved",
+  Rejected = "rejected",
+}
 
-export type ReportPriority = "low" | "medium" | "high" | "critical";
+export const enum ReportPriority {
+  Low = "low",
+  Medium = "medium",
+  High = "high",
+  Critical = "critical",
+}
 
 export type Report = {
   id: string;
@@ -14,6 +25,8 @@ export type Report = {
   address: string | null;
   status: ReportStatus;
   priority: ReportPriority;
+  report_number: string | null;
+  photo_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -35,8 +48,18 @@ export type ReportRow = Report;
 
 export type UpdateReportPayload = {
   reportId: string;
-  status: string;
-  priority: string;
+  status: ReportStatus;
+  priority: ReportPriority;
   remarks?: string;
   assignedTo?: string;
 };
+
+export const RESPONDER_TEAMS = [
+  "Tanod Team A",
+  "Tanod Team B",
+  "BFP Sta. Rita",
+  "PNP Station",
+  "MDRRMO",
+] as const;
+
+export type ResponderTeam = (typeof RESPONDER_TEAMS)[number];

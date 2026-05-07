@@ -1,20 +1,5 @@
-import { supabaseServer } from "@/lib/supabase/server";
+import { getReportStats } from "@/lib/actions/reportActions";
 import Container from "./Container";
-
-async function getStats() {
-  const [{ count: total }, { count: active }, { count: resolved }] = await Promise.all([
-    supabaseServer.from("reports").select("*", { count: "exact", head: true }),
-    supabaseServer
-      .from("reports")
-      .select("*", { count: "exact", head: true })
-      .in("status", ["pending", "verified", "in_progress"]),
-    supabaseServer
-      .from("reports")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "resolved"),
-  ]);
-  return { total: total ?? 0, active: active ?? 0, resolved: resolved ?? 0 };
-}
 
 type StatItemProps = {
   value: number;
@@ -34,7 +19,9 @@ function StatItem({ value, label, colorClass, icon }: StatItemProps) {
 }
 
 export default async function StatsBar() {
-  const { total, active, resolved } = await getStats();
+  const statsResult = await getReportStats();
+  const stats = "data" in statsResult && statsResult.data ? statsResult.data : { total: 0, active: 0, resolved: 0 };
+  const { total, active, resolved } = stats;
 
   return (
     <div className="border-b border-[var(--line)] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)]">

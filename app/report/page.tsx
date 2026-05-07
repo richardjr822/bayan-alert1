@@ -1,20 +1,13 @@
 import Image from "next/image";
+import { getDefaultContact } from "@/lib/actions/reportActions";
 import { getSession } from "@/lib/auth/session";
-import { supabaseServer } from "@/lib/supabase/server";
 import ReportFormClient from "../components/client/ReportFormClient";
 import Topbar from "../components/Topbar";
 
 export default async function ReportPage() {
-  const session = await getSession();
-  let defaultContact = "";
-  if (session) {
-    const { data } = await supabaseServer
-      .from("users")
-      .select("contact_number")
-      .eq("id", session.id)
-      .maybeSingle();
-    defaultContact = data?.contact_number ?? "";
-  }
+  const [contactResult, session] = await Promise.all([getDefaultContact(), getSession()]);
+  const defaultContact = "data" in contactResult ? contactResult.data : "";
+  const isGuest = !session;
   return (
     <div className="flex min-h-screen flex-col">
       <Topbar />
@@ -49,7 +42,7 @@ export default async function ReportPage() {
             </p>
           </div>
 
-          <ReportFormClient defaultContact={defaultContact} />
+          <ReportFormClient defaultContact={defaultContact} isGuest={isGuest} />
 
           <p className="mt-5 text-center text-[11px] text-white/30">
             <i className="fa-solid fa-lock mr-1"></i>
